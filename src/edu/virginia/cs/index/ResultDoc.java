@@ -1,110 +1,47 @@
 package edu.virginia.cs.index;
 
+import java.util.ArrayList;
+
 public class ResultDoc {
 	private int id;
-	private String title = "[no title]";
-	private String reviewText = "[no reviewText]"; // i.e. the reviewText is stored here
-    private String reviewerID;
-    private String asin;
-    private String reviewerName;
-    private int[] helpful = new int[2];
-    private double overall;
-    public int getId() {
+	private String content = "[no content]";
+    private ArrayList<Double> weights;
+    private String productID;
+    
+	private double overall;
+    public ResultDoc(int id) {
+    		this.id = id;
+    }
+	public int getId() {
 		return id;
 	}
-
 	public void setId(int id) {
 		this.id = id;
 	}
-
-	public String getTitle() {
-		return title;
+	public String getContent() {
+		return content;
 	}
-
-	public void setTitle(String title) {
-		this.title = title;
+	public void setContent(String content) {
+		this.content = content;
 	}
-
-	public String getReviewText() {
-		return reviewText;
+	public ArrayList<Double> getWeights() {
+		return weights;
 	}
-
-	public void setReviewText(String reviewText) {
-		this.reviewText = reviewText;
+	public void setWeights(ArrayList<Double> weights) {
+		this.weights = weights;
 	}
-
-	public String getReviewerID() {
-		return reviewerID;
+	public String getProductID() {
+		return productID;
 	}
-
-	public void setReviewerID(String reviewerID) {
-		this.reviewerID = reviewerID;
+	public void setProductID(String productID) {
+		this.productID = productID;
 	}
-
-	public String getAsin() {
-		return asin;
-	}
-
-	public void setAsin(String asin) {
-		this.asin = asin;
-	}
-
-	public String getReviewerName() {
-		return reviewerName;
-	}
-
-	public void setReviewerName(String reviewerName) {
-		this.reviewerName = reviewerName;
-	}
-
-	public int[] getHelpful() {
-		return helpful;
-	}
-
-	public void setHelpful(int[] helpful) {
-		this.helpful = helpful;
-	}
-
 	public double getOverall() {
 		return overall;
 	}
-
 	public void setOverall(double overall) {
 		this.overall = overall;
 	}
-
-	public String getSummary() {
-		return summary;
-	}
-
-	public void setSummary(String summary) {
-		this.summary = summary;
-	}
-
-	public String getUnixReviewTime() {
-		return unixReviewTime;
-	}
-
-	public void setUnixReviewTime(String unixReviewTime) {
-		this.unixReviewTime = unixReviewTime;
-	}
-
-	public String getReviewTime() {
-		return reviewTime;
-	}
-
-	public void setReviewTime(String reviewTime) {
-		this.reviewTime = reviewTime;
-	}
-
-	private String summary;
-    private String unixReviewTime;
-    private String reviewTime;
-
-    public ResultDoc(int id) {
-        this.id = id;
-    }
-    
-    
-   
 }
+    
+    

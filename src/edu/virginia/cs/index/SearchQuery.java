@@ -6,9 +6,10 @@ public class SearchQuery
 {
     private ArrayList<String> fields;
     private String queryText;
-    private int numResults;
+    private double[] queryWeight;
+    private int numResults ;
     private int from;
-    private final static int defaultNumResults = 50;//need to be adjusted if more results are required
+    private final static int defaultNumResults = 10;//need to be adjusted if more results are required
     //private final static String defaultField = "reviewText";
 
     public SearchQuery queryText(String queryText)
@@ -31,6 +32,9 @@ public class SearchQuery
     public String queryText()
     {
         return queryText;
+    }
+    public double[] queryWeight() {
+    		return queryWeight;
     }
 
     public SearchQuery fields(String field)
@@ -62,9 +66,10 @@ public class SearchQuery
         return this;
     }
 
-    public SearchQuery(String queryText, ArrayList<String> fields)
+    public SearchQuery(String queryText, double[] weights, ArrayList<String> fields)
     {
         this.queryText = queryText;
+        this.queryWeight = weights;
         this.numResults = defaultNumResults;
         this.fields = fields;
         from = 0;

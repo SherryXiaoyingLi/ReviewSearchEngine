@@ -3,30 +3,42 @@ package edu.virginia.cs.index;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.DoubleField;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 
+import aspectSegmenter.AnalyzerLara;
 import json.JSONArray;
 import json.JSONException;
 import json.JSONObject;
 //import structures.Corpus;
 //import structures.ReviewDoc;
+import lara.LRR;
+
 
 public class Indexer {
 
+	public static int numAspect;
 	/**
 	 * Creates the initial index files on disk
 	 *
@@ -63,42 +75,50 @@ public class Indexer {
 	 *            Each line is a path to a document
 	 * @throws IOException
 	 */
-	public static void index(String indexPath, String jsonPath) throws IOException {
+	public static void index(String indexPath, String jsonPath, String predPath, int numLatentAspect) throws IOException {
 		System.out.println("Creating Lucene index...");
-		ArrayList<JSONObject> jsons = LoadDirectory(jsonPath, ".json");
+		numAspect = numLatentAspect;
+		HashMap<String, String[]> prediction = LoadPrediction(predPath);
+		HashMap<String, JSONObject> jsons = LoadDirectory(jsonPath, ".json");
+		
 		FieldType _contentFieldType = new FieldType();
 
 		_contentFieldType.setIndexed(true);
 		_contentFieldType.setStored(true);
 
 		IndexWriter writer = setupIndex(indexPath);
-		int i = 0, counter = 0;
-
+		int counter = 0;
+				
 		try {
-			for (JSONObject json : jsons) {
-				JSONArray jarray = json.getJSONArray("Reviews");
-				for (i = 0; i < jarray.length(); i++) {
+			for (String productID: jsons.keySet() ) {
+				if (prediction.containsKey(productID)) {
+				JSONArray jarray = jsons.get(productID).getJSONArray("Reviews"); // one jarray for all reviews of one hotel, create one doc for it
+				Document doc = new Document();
+				StringBuilder content = new StringBuilder();
+				
+				for (int i = 0; i < jarray.length(); i++) {
 					try {
 						JSONObject review = jarray.getJSONObject(i);
-						Document doc = new Document();
-						/** add all fields here **/
-						
-						doc.add(new TextField("reviewText", review.getString("reviewText"), Field.Store.YES));
-						doc.add(new TextField("reviewerID", review.getString("reviewerID"), Field.Store.YES));
-						doc.add(new TextField("asin", review.getString("asin"), Field.Store.YES));
-						doc.add(new TextField("reviewerName", review.getString("reviewerName"), Field.Store.YES));
-						doc.add(new TextField("helpful", review.getStringFromArray("helpful"), Field.Store.YES));
-						doc.add(new TextField("overall", review.doubleToString(review.getDouble("overall")), Field.Store.YES));
-						doc.add(new TextField("summary", review.getString("summary"), Field.Store.YES));
-						doc.add(new TextField("unixReviewTime", Long.toString(review.getLong("unixReviewTime")), Field.Store.YES));
-						doc.add(new TextField("reviewTime", review.getString("reviewTime"), Field.Store.YES));
-						writer.addDocument(doc);
-						counter += 1;
-						if (counter % 1000 == 0)
-							System.out.println(" -> indexed " + counter + " docs...");
+						content.append(review.getString("Title"));
+						content.append(review.getString("Content"));
 					} catch (JSONException e) {
 						e.printStackTrace();
 					}
+				}
+				doc.add(new TextField("productID", productID, Field.Store.YES));
+				doc.add(new TextField("content", content.toString(), Field.Store.YES));
+				
+				
+				String []pred = prediction.get(productID);
+				
+				int k = 0;
+				for (k = 2; k < numAspect+2; k ++ ) {
+					doc.add(new DoubleField("aspRat_"+(k-1), Double.parseDouble(pred[k]), Field.Store.YES));
+					doc.add(new DoubleField("weight_"+(k-1), Double.parseDouble(pred[k+numAspect+1]) , Field.Store.YES));
+				}
+				
+				writer.addDocument(doc);
+				counter ++ ;
 				}
 			}
 		} catch (JSONException e) {
@@ -110,19 +130,33 @@ public class Indexer {
 
 	}
 
-	public static ArrayList<JSONObject> LoadDirectory(String folder, String suffix) {
+	
+	public static HashMap<String, String[]> LoadPrediction(String filename) throws IOException {
+		HashMap<String, String[]> prediction = new HashMap<>();
+		BufferedReader reader = new BufferedReader(new FileReader(filename));
+		String line = reader.readLine();
+		while (line != null) {
+			prediction.put(line.substring(0, line.indexOf("\t")), line.split("\t"));
+			line = reader.readLine();
+		}
+		return prediction;
+	}
+	
+	public static HashMap<String, JSONObject> LoadDirectory(String folder, String suffix) {
 		File dir = new File(folder);
-		ArrayList<JSONObject> jsons = new ArrayList<JSONObject>();
+		HashMap<String, JSONObject> jsons = new HashMap<>();
 		for (File f : dir.listFiles()) {
 			if (f.isFile() && f.getName().endsWith(suffix)) {
-				jsons.add(LoadJson(f.getAbsolutePath()));
+				String productID = f.getName().substring(0, f.getName().indexOf(".json"));
+				jsons.put(productID,LoadJson(f.getAbsolutePath()));
 			} else if (f.isDirectory()) {
-				jsons.addAll(LoadDirectory(f.getAbsolutePath(), suffix));
+				jsons.putAll((LoadDirectory(f.getAbsolutePath(), suffix)));
 			}
 		}	
 		System.out.format("json size:%d",jsons.size());
 		return jsons;
 	}
+	
 
 	// sample code for demonstrating how to read a file from disk in Java
 	static JSONObject LoadJson(String filename) {

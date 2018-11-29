@@ -2,10 +2,14 @@ package edu.virginia.cs.index;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
@@ -15,6 +19,7 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
@@ -33,7 +38,7 @@ public class Searcher
     private SpecialAnalyzer analyzer;
     private static SimpleHTMLFormatter formatter;
     private static final int numFragments = 4;
-    private static final String defaultField = "reviewText"; //by default, we will only search in the reviewText field
+    private static final ArrayList<String> defaultField = new ArrayList<>(Arrays.asList("content"));
 
     /**
      * Sets up the Lucene index Searcher with the specified index.
@@ -74,6 +79,7 @@ public class Searcher
         BooleanQuery combinedQuery = new BooleanQuery();
         for(String field: searchQuery.fields())
         {
+        		if (!field.contains("weight_") && !field.contains("aspRat_")) {
             QueryParser parser = new QueryParser(Version.LUCENE_46, field, analyzer);
             parser.setDefaultOperator(QueryParser.Operator.AND);//all query terms need to present in a matched document
             try
@@ -85,6 +91,12 @@ public class Searcher
             {
                 exception.printStackTrace();
             }
+        		}
+        		else if (field.contains("weight_")){
+        			double w_i = searchQuery.queryWeight()[Integer.parseInt(field.substring(7))-1];
+            		Query weightQuery = NumericRangeQuery.newDoubleRange(field, w_i-0.1, w_i+0.1, true, true);
+            		combinedQuery.add(weightQuery, BooleanClause.Occur.MUST);
+        		}
         }
 
         return runSearch(combinedQuery, searchQuery);
@@ -99,10 +111,13 @@ public class Searcher
      *            The text to search
      * @return the SearchResult
      */
-    public SearchResult search(String queryText)
+    public SearchResult search(String queryText, double[] weights)
     {
     	long currentTime = System.currentTimeMillis();
-    	SearchResult results = search(new SearchQuery(queryText, defaultField));
+    for (int i = 1; i <=weights.length; i ++ ) {
+    		defaultField.add("weight_"+i);
+    }
+    	SearchResult results = search(new SearchQuery(queryText, weights, defaultField));
     	long timeElapsed = System.currentTimeMillis() - currentTime;
 		
 		System.out.format("[Info]%d documents returned for query [%s] in %.3f seconds\n", results.numHits(), queryText, timeElapsed/1000.0);
@@ -125,42 +140,31 @@ public class Searcher
 
             TopDocs docs = indexSearcher.search(luceneQuery, searchQuery.fromDoc() + searchQuery.numResults());
             ScoreDoc[] hits = docs.scoreDocs;
-            //String field = searchQuery.fields().get(0);
-            String field = "reviewText";
+            String field = searchQuery.fields().get(0);
             
             SearchResult searchResult = new SearchResult(searchQuery, docs.totalHits);
             for(ScoreDoc hit : hits) // hit the ResultDoc id
             {
-            		//System.out.println(hit.toString());
                 Document doc = indexSearcher.doc(hit.doc);
                 ResultDoc rdoc = new ResultDoc(hit.doc);
-                String highlighted = null;
-                try
-                {
-                    Highlighter highlighter = new Highlighter(formatter, new QueryScorer(luceneQuery));
-                    //rdoc.title("" + (hit.doc + 1)); 
-                    // set more fields for ResultDoc here
-                    String contents = doc.getField(field).toString();
-                    rdoc.setReviewText(contents);
-                    rdoc.setAsin(doc.getField("asin").toString());
-                    rdoc.setReviewerID(doc.getField("reviewerID").toString());
-                    rdoc.setReviewerName(doc.getField("reviewerName").toString());
-                    //rdoc.setOverall(Double.valueOf(doc.getField("overall").toString()));
-                    String helpfulStr = doc.getField("helpful").toString();
-                    //String[] helpful = helpfulStr.split("/");
-                    //if (helpful.length==2) {
-                    //rdoc.setHelpful(new int[]{Integer.parseInt(helpful[0]), Integer.parseInt(helpful[1])});
-                    //}
-                    String[] snippets = highlighter.getBestFragments(analyzer, field, contents, numFragments);
-                    highlighted = createOneSnippet(snippets);
-                } catch(InvalidTokenOffsetsException exception) {
-                    exception.printStackTrace();
-                    highlighted = "(no snippets yet)";
+                //String highlighted = null;Highlighter highlighter = new Highlighter(formatter, new QueryScorer(luceneQuery));
+                String content = format(doc.getField(field).toString());
+                rdoc.setContent(content);
+                rdoc.setProductID(format(doc.getField("productID").toString()));
+                ArrayList<Double> weights = new ArrayList<>();
+                for (String str: searchQuery.fields()) {
+                	if (str.startsWith("weight_")) {
+                		int index = Integer.parseInt(str.substring(7));
+                		weights.add(index-1, Double.parseDouble(format(doc.getField(str).toString())));
+                	}
                 }
-
+                rdoc.setWeights(weights);
+                //String[] snippets = highlighter.getBestFragments(analyzer, field, content, numFragments);
+                //highlighted = createOneSnippet(snippets);
+                
                 searchResult.addResult(rdoc);
                
-                searchResult.setSnippet(rdoc, highlighted);
+                //searchResult.setSnippet(rdoc, highlighted);
             }
 
             searchResult.trimResults(searchQuery.fromDoc());
@@ -173,7 +177,11 @@ public class Searcher
         return new SearchResult(searchQuery);
     }
     
-    
+    public String format(String raw) {
+    		String res = raw;
+    		res = res.substring(res.indexOf("<")+1, res.lastIndexOf(">"));
+    		return res.substring(res.indexOf(":")+1);
+    }
 
     /**
      * Create one string of all the extracted snippets from the highlighter

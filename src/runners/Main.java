@@ -7,62 +7,65 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 
+import aspectSegmenter.AnalyzerLara;
 import edu.virginia.cs.index.Indexer;
 import edu.virginia.cs.index.ResultDoc;
 import edu.virginia.cs.index.Searcher;
+import lara.LRR;
 import edu.virginia.cs.index.SearchResult;
 
 public class Main {
 
-	//The main entrance to test various functions 
-	public static void main(String[] args) {
-		try {
-			long currentTime = System.currentTimeMillis();
-			Indexer.index("data/indices", "data/datas");
-			long timeElapsed = System.currentTimeMillis() - currentTime;
-			System.out.format("Finished in %.3f seconds\n", timeElapsed/1000.0);
-			String query = "Good for baby products.";
-			
-			Searcher indexSearcher = new Searcher("data/indices");
-			// using the search that calls search(StringQuery) and runSearch
-			SearchResult result = indexSearcher.search(query);
-			ArrayList<ResultDoc> resultDocs = result.getDocs();
-			for (ResultDoc doc: resultDocs) {
-				System.out.println(doc.getReviewText());
-				System.out.println(doc.getAsin());
-			}
-			
-		} catch (IOException e) {
-			e.printStackTrace();
+	public static void main(String[] args) throws IOException {
+		/**
+		// generate bootstrapping product keywords here
+		AnalyzerLara analyzer = new AnalyzerLara("data/Seeds/hotel_for_bootstrapping.dat", "data/Seeds/stopwords.dat", 
+				"data/Model/NLP/en-sent.zip", "data/Model/NLP/en-token.zip", "data/Model/NLP/en-pos-maxent.bin");
+		analyzer.LoadDirectory("data/Reviews/", ".json");
+		analyzer.BootStrapping("Data/Seeds/hotel_bootstrapping_res.dat");
+		
+		// generate weights and aspRat and build indices here
+		AnalyzerLara analyzer = new AnalyzerLara("data/Seeds/hotel_bootstrapping_res.dat", "data/Seeds/stopwords.dat", 
+				"data/Model/NLP/en-sent.zip", "data/Model/NLP/en-token.zip", "data/Model/NLP/en-pos-maxent.bin");
+		analyzer.LoadDirectory("data/Reviews/", ".json");
+		analyzer.Save2Vectors("data/Vectors/vector_hotel.dat");	
+
+		LRR model = new LRR(500, 1e-2, 5000, 1e-2, 2.0);
+		//model.LoadVectors("data/Vectors/Vector.dat");
+		model.EM_est("data/Vectors/vector_hotel.dat", 10, 1e-4);
+		model.SaveModel("data/Model/model_hotel.dat");
+		model.SavePrediction("data/Results/pred_hotel.dat"); 
+		
+		System.out.println("good ");
+		
+		long currentTime = System.currentTimeMillis();
+		Indexer.index("data/indices", "data/Reviews", "data/Results/pred_hotel.dat", 5);
+		long timeElapsed = System.currentTimeMillis() - currentTime;
+		System.out.format("Finished in %.3f seconds\n", timeElapsed/1000.0);
+		**/
+		// input query and weights here, 
+		// change weight_i allowable range in Searcher, defaultNumResult in SearchQuery
+		String query = "Nice Hotel in New York.";
+		double []weights = {0.2, 0.3, 0.1, 0.35, 0.05};
+		
+		Searcher indexSearcher = new Searcher("data/indices");
+		SearchResult result = indexSearcher.search(query, weights);
+		ArrayList<ResultDoc> resultDocs = result.getDocs();
+		int rank = 1;
+		if (resultDocs.size() == 0)
+		    System.out.println("No results found!");
+		for (ResultDoc rdoc : resultDocs) {
+		    //System.out.println("\n------------------------------------------------------");
+		    System.out.println(rank + ". " + rdoc.getId() + " "+ rdoc.getProductID() );
+		    System.out.println(rdoc.getWeights());
+		    //System.out.println(rdoc.getContent());
+		    //System.out.println("------------------------------------------------------");
+		    //System.out.println(result.getSnippet(rdoc).replaceAll("\n", " "));
+		    ++rank;
 		}
+		System.out.print("> ");
+		
+		
 		
 	}
-	/**
-	public static class ValueComparator implements Comparator<String> {
-	    HashMap<String, Integer> base;
-	    public ValueComparator(HashMap<String, Integer> base) {
-	        this.base = base;
-	    }
-	    public int compare(String a, String b) {
-	        if (base.get(a) >= base.get(b)) {
-	            return -1;
-	        } else {
-	            return 1;
-	        }
-	    }
-	}
-	public static class ValueComparator2 implements Comparator<String> {
-	    HashMap<String, Long> base;
-	    public ValueComparator2(HashMap<String, Long> base) {
-	        this.base = base;
-	    }
-	    public int compare(String a, String b) {
-	        if (base.get(a) >= base.get(b)) {
-	            return -1;
-	        } else {
-	            return 1;
-	        }
-	    }
-	}
-**/
 }
