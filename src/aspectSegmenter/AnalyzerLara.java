@@ -54,7 +54,7 @@ public class AnalyzerLara {
 		}
 	}
 	
-	Vector<Hotel> m_hotelList;	
+	public Vector<Hotel> m_hotelList;	
 	Vector<_Aspect> m_keywords;
 	Hashtable<String, Integer> m_vocabulary;//indexed vocabulary
 	Vector<String> m_wordlist;//term list in the original order
@@ -210,7 +210,7 @@ public class AnalyzerLara {
 		return content.replace(error_A, "");
 	}
 	
-	
+	/**
 	//the review format is fixed
 	public void LoadReviews(String filename){//load reviews for annotation purpose
 		try {
@@ -287,20 +287,8 @@ public class AnalyzerLara {
 			e.printStackTrace();
 		}
 	}
-	/**
-	public void LoadDirectory(String path, String suffix){		
-		File dir = new File(path);
-		int size = m_hotelList.size();
-		for (File f : dir.listFiles()) {
-			if (f.isFile() && f.getName().endsWith(suffix))
-				LoadReviews(f.getAbsolutePath());
-			else if (f.isDirectory())
-				LoadDirectory(f.getAbsolutePath(), suffix);
-		}
-		size = m_hotelList.size() - size;
-		System.out.println("Loading " + size + " hotels from " + path);
-	}
 	**/
+	
 	public ArrayList<JSONObject> LoadDirectory(String folder, String suffix) {
 		File dir = new File(folder);
 		ArrayList<JSONObject> jsons = new ArrayList<JSONObject>();

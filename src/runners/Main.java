@@ -6,8 +6,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 
 import aspectSegmenter.AnalyzerLara;
+import aspectSegmenter.Review;
 import edu.virginia.cs.index.Indexer;
 import edu.virginia.cs.index.ResultDoc;
 import edu.virginia.cs.index.Searcher;
@@ -17,6 +19,8 @@ import edu.virginia.cs.index.SearchResult;
 public class Main {
 
 	public static void main(String[] args) throws IOException {
+		
+		
 		/**
 		// generate bootstrapping product keywords here
 		AnalyzerLara analyzer = new AnalyzerLara("data/Seeds/hotel_for_bootstrapping.dat", "data/Seeds/stopwords.dat", 

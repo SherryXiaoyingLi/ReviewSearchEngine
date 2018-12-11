@@ -94,7 +94,7 @@ public class Searcher
         		}
         		else if (field.contains("weight_")){
         			double w_i = searchQuery.queryWeight()[Integer.parseInt(field.substring(7))-1];
-            		Query weightQuery = NumericRangeQuery.newDoubleRange(field, w_i-0.1, w_i+0.1, true, true);
+            		Query weightQuery = NumericRangeQuery.newDoubleRange(field, w_i-0.15, w_i+0.15, true, true);
             		combinedQuery.add(weightQuery, BooleanClause.Occur.MUST);
         		}
         }
