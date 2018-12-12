@@ -1,5 +1,5 @@
 function search(requestJSON, callback) {
-    return fetch(`api/`, {
+    return fetch(`greeting/`, {
         method: "POST",
         headers: {
             "Accept": "application/json",

@@ -68,7 +68,7 @@ class SearchForm extends Component {
                 </div>
                 
                 <div>
-                    <ProductList products={products} />`
+                    <ProductList products={this.state.resultList} />`
                 </div>
             </div>
         );
