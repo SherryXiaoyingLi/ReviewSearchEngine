@@ -15,6 +15,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -54,7 +55,7 @@ public class AnalyzerLara {
 		}
 	}
 	
-	public Vector<Hotel> m_hotelList;	
+	public Vector<Product> m_hotelList;	
 	Vector<_Aspect> m_keywords;
 	Hashtable<String, Integer> m_vocabulary;//indexed vocabulary
 	Vector<String> m_wordlist;//term list in the original order
@@ -96,7 +97,7 @@ public class AnalyzerLara {
 	}
 	
 	public AnalyzerLara(String seedwords, String stopwords, String stnSplModel, String tknModel, String posModel){
-		m_hotelList = new Vector<Hotel>();
+		m_hotelList = new Vector<Product>();
 		m_vocabulary = new Hashtable<String, Integer>();
 		m_chi_table = null;
 		m_isLoadCV = false;
@@ -287,22 +288,23 @@ public class AnalyzerLara {
 			e.printStackTrace();
 		}
 	}
+	 * @throws IOException 
 	**/
 	
-	public ArrayList<JSONObject> LoadDirectory(String folder, String suffix) {
+	public ArrayList<JSONObject> LoadDirectory(String folder, String suffix, HashMap<String, Product> pdctList) throws IOException {
 		File dir = new File(folder);
 		ArrayList<JSONObject> jsons = new ArrayList<JSONObject>();
 		for (File f : dir.listFiles()) {
 			if (f.isFile() && f.getName().endsWith(suffix)) {
-				jsons.add(LoadJson(f.getAbsolutePath()));
+				jsons.add(LoadJson(f.getAbsolutePath(), pdctList));
 			} else if (f.isDirectory()) {
-				jsons.addAll(LoadDirectory(f.getAbsolutePath(), suffix));
+				jsons.addAll(LoadDirectory(f.getAbsolutePath(), suffix, pdctList));
 			}
 		}	
 		System.out.format("json size:%d",jsons.size());
 		return jsons;
 	}
-	public JSONObject LoadJson(String filename) {
+	public JSONObject LoadJson(String filename, HashMap<String, Product> pdctList) throws IOException {
 		try {
 			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(filename), "UTF-8"));
 			StringBuffer buffer = new StringBuffer(1024);
@@ -313,24 +315,37 @@ public class AnalyzerLara {
 			reader.close();
 			JSONObject json = new JSONObject(buffer.toString());
 			
-			String fname = filename.substring(filename.lastIndexOf("/")+1, filename.indexOf(".json")), title = "", content = null;
-			int review_size = 0;
+			String title = "", content = null;
+			String asin, fname = null;
 			
 			Review review = null;
 			String[] stns, tokens;
 			Span[] stn_spans;
 			int[] ratings = new int[1+ASPECT_SET_NEW.length];
-			Hotel tHotel = new Hotel(fname);
 			
-			JSONArray jarray = json.getJSONArray("Reviews"); //all reviews for one hotel
-			
+			JSONArray jarray = json.getJSONArray("Reviews"); //all reviews in one file for multiple products
+			String prev = null;
 			for (int j = 0; j < jarray.length(); j++) {
-	
 				try {
 					JSONObject obj = jarray.getJSONObject(j);
-					title = obj.getString("Title");
-					content = obj.getString("Content");
-					ratings[0] = (int) Math.round((Double.parseDouble(obj.getJSONObject("Ratings").getString("Overall"))));
+					title = obj.getString("summary");
+					content = obj.getString("reviewText");
+					asin = obj.getString("asin");
+					fname = asin;
+					if (!fname.equals(prev)) {
+						
+						if (pdctList.containsKey(prev)) {
+						if (pdctList.get(prev).getReviewSize()>1){
+							m_hotelList.add(pdctList.get(prev));
+							if (m_hotelList.size()%100==0)
+								System.out.print(".");
+							if (m_hotelList.size()%10000==0)
+								System.out.println(".");
+						}
+						}
+						prev = fname;
+					}
+					ratings[0] = (int) Math.round(obj.getDouble("overall"));
 					
 					stn_spans = m_stnDector.sentPosDetect(content);//list of the sentence spans
 					if (stn_spans.length<3){
@@ -340,6 +355,10 @@ public class AnalyzerLara {
 					}
 					
 					stns = Span.spansToStrings(stn_spans, content);
+					int review_size = 0;
+					if (pdctList.containsKey(asin)) {
+					review_size = pdctList.get(asin).getReviewSize();
+					}
 					review = new Review(fname, Integer.toString(review_size), ratings);
 					for(int i=0; i<stns.length; i++){
 						tokens = m_tokenizer.tokenize(stns[i]);
@@ -356,8 +375,14 @@ public class AnalyzerLara {
 						
 						if (m_isLoadCV==false)//didn't load the controlled vocabulary
 							expendVocabular(review);
-						tHotel.addReview(review);
-						review_size ++;
+						if (pdctList.containsKey(asin)) {
+							pdctList.get(asin).addReview(review);
+						}
+						else {
+							Product pdct = new Product(asin);
+							pdct.addReview(review);
+							pdctList.put(asin, pdct);
+						}
 					}
 					
 					content = null;
@@ -365,23 +390,10 @@ public class AnalyzerLara {
 				} catch (JSONException e) {
 					e.printStackTrace();
 				}
-			}
-			
-			if (tHotel.getReviewSize()>1){
-				m_hotelList.add(tHotel);
-				if (m_hotelList.size()%100==0)
-					System.out.print(".");
-				if (m_hotelList.size()%10000==0)
-					System.out.println(".");
-			}
-					
+			}		
 			return json;
-		} catch (IOException e) {
-			System.err.format("[Error]Failed to open file %s!", filename);
-			e.printStackTrace();
-			return null;
-		} catch (JSONException e) {
-			System.err.format("[Error]Failed to parse json file %s!", filename);
+		}
+		catch (JSONException e){
 			e.printStackTrace();
 			return null;
 		}
@@ -396,7 +408,7 @@ public class AnalyzerLara {
 			int[][] vectors = new int[m_keywords.size()][m_vocabulary.size()];
 			double[] ratings = new double[1+m_keywords.size()], counts = new double[1+m_keywords.size()];
 			int aspectID, wordID, outputSize=0, reviewSize=0;
-			for(Hotel hotel:m_hotelList){
+			for(Product hotel:m_hotelList){
 				for(Review r:hotel.m_reviews){//aggregate all the reviews
 					Annotate(r);
 					
@@ -565,7 +577,7 @@ public class AnalyzerLara {
 	
 	private void ChiSquareTest(){		
 		createChiTable();
-		for(Hotel hotel:m_hotelList){
+		for(Product hotel:m_hotelList){
 			for(Review tReview:hotel.m_reviews){
 				Annotate(tReview);
 				collectStats(tReview);
@@ -599,7 +611,7 @@ public class AnalyzerLara {
 		else
 			Arrays.fill(m_wordCount, 0);
 		
-		for(Hotel hotel:m_hotelList){
+		for(Product hotel:m_hotelList){
 			for(Review tReview:hotel.m_reviews){
 				for(Sentence stn : tReview.m_stns){					
 					for(Token t:stn.m_tokens){
@@ -769,7 +781,7 @@ public class AnalyzerLara {
 		AnalyzerLara analyzer = new AnalyzerLara("Data/Seeds/hotel_bootstrapping_test.dat", "Data/Seeds/stopwords.dat", 
 				"Data/Model/NLP/en-sent.zip", "Data/Model/NLP/en-token.zip", "Data/Model/NLP/en-pos-maxent.bin");
 		//analyzer.LoadVocabulary("Data/Seeds/hotel_vocabulary_CHI.dat");
-		analyzer.LoadDirectory("Data/Reviews/", ".dat");
+		//analyzer.LoadDirectory("Data/Reviews/", ".dat");
 		//analyzer.LoadReviews("e:/Data/Reviews/Tmp/hotel_111849.dat");
 		analyzer.BootStrapping("Data/Seeds/hotel_bootstrapping_test.dat");
 		//analyzer.OutputWordListWithInfo("Data/Seeds/hotel_vocabulary_May10.dat");

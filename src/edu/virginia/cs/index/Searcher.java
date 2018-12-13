@@ -32,12 +32,15 @@ import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 
+import sum.Parser;
+
 public class Searcher
 {
     private IndexSearcher indexSearcher;
     private SpecialAnalyzer analyzer;
     private static SimpleHTMLFormatter formatter;
     private static final int numFragments = 4;
+    private static double alpha = 0;
     private static final ArrayList<String> defaultField = new ArrayList<>(Arrays.asList("content"));
 
     /**
@@ -62,7 +65,10 @@ public class Searcher
             exception.printStackTrace();
         }
     }
-
+    
+    public void set_alpha(double alpha) {
+    		this.alpha = alpha;
+    }
     public void setSimilarity(Similarity sim)
     {
         indexSearcher.setSimilarity(sim);
@@ -94,7 +100,8 @@ public class Searcher
         		}
         		else if (field.contains("weight_")){
         			double w_i = searchQuery.queryWeight()[Integer.parseInt(field.substring(7))-1];
-            		Query weightQuery = NumericRangeQuery.newDoubleRange(field, w_i-0.15, w_i+0.15, true, true);
+            		Query weightQuery = NumericRangeQuery.newDoubleRange(field, w_i-alpha, w_i+alpha, true, true);
+            		
             		combinedQuery.add(weightQuery, BooleanClause.Occur.MUST);
         		}
         }
@@ -159,6 +166,9 @@ public class Searcher
                 	}
                 }
                 rdoc.setWeights(weights);
+                String str = doc.getField("overall").toString();
+             
+                rdoc.setOverall(str.substring(7, str.lastIndexOf(">")));
                 //String[] snippets = highlighter.getBestFragments(analyzer, field, content, numFragments);
                 //highlighted = createOneSnippet(snippets);
                 

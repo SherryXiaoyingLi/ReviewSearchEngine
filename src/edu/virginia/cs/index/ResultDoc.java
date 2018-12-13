@@ -8,7 +8,7 @@ public class ResultDoc {
     private ArrayList<Double> weights;
     private String productID;
     
-	private double overall;
+	private String overall;
     public ResultDoc(int id) {
     		this.id = id;
     }
@@ -36,10 +36,10 @@ public class ResultDoc {
 	public void setProductID(String productID) {
 		this.productID = productID;
 	}
-	public double getOverall() {
+	public String getOverall() {
 		return overall;
 	}
-	public void setOverall(double overall) {
+	public void setOverall(String overall) {
 		this.overall = overall;
 	}
 }

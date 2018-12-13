@@ -50,38 +50,42 @@ public class main {
     
     
     public static void main(String[] args) throws IOException {
-    	HashMap<String, JSONObject> jsons = LoadDirectory("data/Reviews", ".json");
+    	ArrayList<JSONObject> jsons = LoadDirectory("data/Reviews/amazon", ".json");
     	
     	try {
-			for (String productID: jsons.keySet() ) {
-				//String productID = "72572";
-				JSONArray jarray = jsons.get(productID).getJSONArray("Reviews"); // one jarray for all reviews of one hotel, create one doc for it
-				String name = "data/Reviews/"+productID+".txt";
-				BufferedWriter main_writer = new BufferedWriter(new FileWriter(name+".sum"));
+			for (int j = 0; j < jsons.size(); j ++) {
+				JSONArray jarray = jsons.get(j).getJSONArray("Reviews"); 
+				String prev = null;
+				String asin = null;
+				//BufferedWriter main_writer = new BufferedWriter(new FileWriter(name+".sum"));
 				for (int i = 0; i < jarray.length(); i++) {
 					try {
-						String filename = name+i;
+						JSONObject obj = jarray.getJSONObject(j);
+						asin = obj.getString("asin");
+						if (!asin.equals(prev) && prev!=null || j == jarray.length()-1 && asin.equals(prev)) {
+							BufferedWriter sum_writer = new BufferedWriter(new FileWriter("data/Reviews/sum/"+prev+".productSum") );
+							getSummary(prev+"Sum", sum_writer);
+							sum_writer.close();
+							Files.delete(Paths.get(prev+"Sum"));
+						}
+						String filename = asin+i;
 						BufferedWriter writer = new BufferedWriter(new FileWriter(filename)) ;
+						BufferedWriter main_writer = new BufferedWriter(new FileWriter(asin+"Sum", true)) ;
 						
-						JSONObject review = jarray.getJSONObject(i);
-						String content = review.getString("Content");
+						String content = obj.getString("reviewText");
 						writer.write(content);
 						writer.close();
-						
 						getSummary(filename, main_writer);
-						
+						main_writer.close();
 						Path path = Paths.get(filename);
 						Files.delete(path);
+						prev = asin;
+						asin = null;
 						
 					} catch (JSONException e) {
 						e.printStackTrace();
 					}
 				}
-				main_writer.close();
-				BufferedWriter sum_writer = new BufferedWriter(new FileWriter("data/Reviews/sum/"+productID+".productSum") );
-				getSummary(name+".sum", sum_writer);
-				sum_writer.close();
-				Files.delete(Paths.get(name+".sum"));
 			} 
 			 	
 	} catch (JSONException e) {
@@ -156,8 +160,8 @@ public class main {
 			avgrate /= sum_gold.size();
 			System.out.println("avgrate: "+avgrate);
     }
-	
 	**/
+	
     
     
     public static Sentence[] getSummary(String filename, BufferedWriter writer) throws IOException {
@@ -189,15 +193,14 @@ public class main {
     }
     
     
-    public static HashMap<String, JSONObject> LoadDirectory(String folder, String suffix) {
+    public static ArrayList<JSONObject> LoadDirectory(String folder, String suffix) {
 		File dir = new File(folder);
-		HashMap<String, JSONObject> jsons = new HashMap<>();
+		ArrayList<JSONObject> jsons = new ArrayList<>();
 		for (File f : dir.listFiles()) {
 			if (f.isFile() && f.getName().endsWith(suffix)) {
-				String productID = f.getName().substring(0, f.getName().indexOf(".json"));
-				jsons.put(productID,LoadJson(f.getAbsolutePath()));
+				jsons.add(LoadJson(f.getAbsolutePath()));
 			} else if (f.isDirectory()) {
-				jsons.putAll((LoadDirectory(f.getAbsolutePath(), suffix)));
+				jsons.addAll((LoadDirectory(f.getAbsolutePath(), suffix)));
 			}
 		}	
 		System.out.format("json size:%d",jsons.size());

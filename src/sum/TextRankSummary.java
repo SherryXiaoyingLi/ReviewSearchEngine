@@ -51,14 +51,16 @@ public class TextRankSummary extends TextRank implements SummaryExtractor {
         // similarity measure calculated here
         @Override
         public double calculateRelationScore(Graph<Sentence>.Node other) {
-        		//return BM25(other);
+        		return BM25(other);
         		//return TFIDF(other);
-        		return PivotedLength(other);
+        		//return PivotedLength(other);
         		
         		//List<String> thisWords = getContent().getWords();
             //List<String> otherWords = other.getContent().getWords();
         		//float numCommonWords = thisWords.stream().filter(w -> otherWords.contains(w)).count();
             //return numCommonWords / Math.log(thisWords.size() * otherWords.size());
+        		
+        		
         }
         
         public double BM25(Graph<Sentence>.Node other) {

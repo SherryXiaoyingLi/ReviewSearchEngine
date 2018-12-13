@@ -9,7 +9,7 @@ public class SearchQuery
     private double[] queryWeight;
     private int numResults ;
     private int from;
-    private final static int defaultNumResults = 10;//need to be adjusted if more results are required
+    private final static int defaultNumResults = 25;//need to be adjusted if more results are required
     //private final static String defaultField = "reviewText";
 
     public SearchQuery queryText(String queryText)
