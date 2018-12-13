@@ -55,35 +55,35 @@ public class main {
     	try {
 			for (int j = 0; j < jsons.size(); j ++) {
 				JSONArray jarray = jsons.get(j).getJSONArray("Reviews"); 
-				String prev = null;
+				String prev = jarray.getJSONObject(0).getString("asin");
 				String asin = null;
 				//BufferedWriter main_writer = new BufferedWriter(new FileWriter(name+".sum"));
 				for (int i = 0; i < jarray.length(); i++) {
+					
 					try {
-						JSONObject obj = jarray.getJSONObject(j);
+						JSONObject obj = jarray.getJSONObject(i);
 						asin = obj.getString("asin");
+						
 						if (!asin.equals(prev) && prev!=null || j == jarray.length()-1 && asin.equals(prev)) {
+							
 							BufferedWriter sum_writer = new BufferedWriter(new FileWriter("data/Reviews/sum/"+prev+".productSum") );
 							getSummary(prev+"Sum", sum_writer);
 							sum_writer.close();
 							Files.delete(Paths.get(prev+"Sum"));
 						}
-						String filename = asin+i;
-						BufferedWriter writer = new BufferedWriter(new FileWriter(filename)) ;
-						BufferedWriter main_writer = new BufferedWriter(new FileWriter(asin+"Sum", true)) ;
+						BufferedWriter writer = new BufferedWriter(new FileWriter(asin+"Content"+i)) ;
 						
 						String content = obj.getString("reviewText");
 						writer.write(content);
 						writer.close();
-						getSummary(filename, main_writer);
+						BufferedWriter main_writer = new BufferedWriter(new FileWriter(asin+"Sum", true));
+						getSummary(asin+"Content"+i, main_writer);
 						main_writer.close();
-						Path path = Paths.get(filename);
-						Files.delete(path);
+						Files.delete(Paths.get(asin+"Content"+i));
 						prev = asin;
-						asin = null;
 						
 					} catch (JSONException e) {
-						e.printStackTrace();
+						System.out.println("error");
 					}
 				}
 			} 
@@ -172,7 +172,7 @@ public class main {
 		}
 		parsedSentences = p.getParsedSentences();
 		taggedWords = p.getTaggedWords();
-		keywords = new TextRankKeywords(taggedWords, numKeywords).getKeywords();
+		//keywords = new TextRankKeywords(taggedWords, numKeywords).getKeywords();
 
 		switch (algorithm) {
 		case TEXTRANK:
